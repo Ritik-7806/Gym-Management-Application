@@ -1,0 +1,42 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: backend-deployment
+  namespace: gym-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      name: backend-pod
+      namespace: gym-app
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: gymapp-backend
+          image: ritik7806/gym-app-backend-beta:v1.0
+          ports:
+            - containerPort: 9090
+          
+
+---
+
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: backend-service
+  namespace: gym-app
+spec:
+  type: Nodeport
+  selector:
+    app: backend
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      nodeport: 31000
+
