@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: gymapp-backend
-          image: ritik7806/gym-app-backend-beta:v1.0
+          image: ritik7806/gym-app-backend-beta:v1.1
           ports:
             - containerPort: 9090
           
