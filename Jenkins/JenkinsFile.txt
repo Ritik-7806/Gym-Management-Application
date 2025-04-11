@@ -1,0 +1,99 @@
+pipeline {
+    agent any
+    parameters {
+        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Backend Docker tag of the image ')
+    }
+    stages {
+        stage('Workspace cleanup') {
+            steps {
+                script {
+                    // Run the batch script to clean the workspace
+                    bat ''' 
+                        @echo off
+                        REM Clean the workspace by deleting all files and folders inside the current directory (workspace)
+                        del /q /f *.*
+                        for /d %%x in (*) do rmdir /s /q "%%x"
+                    '''
+                }
+            }
+        }
+        stage("Trivy: Filesystem scan"){
+            steps{
+                script{
+                    bat ' trivy fs . '
+                }
+            }
+        }
+        stage("Cloning") {
+            steps {
+                echo "Cloning the app"
+                git url: "https://github.com/Ritik-7806/Gym-Management-Application.git", branch: "main"
+                echo "App has cloned successfully"
+            }
+        }
+        stage("Docker: Build Images") {
+    steps {
+        script {
+            // Build the backend Docker image
+            dir('backend') {
+                bat """
+                    docker build -t gym-app-backend-beta:${params.BACKEND_DOCKER_TAG} .
+                    docker tag gym-app-backend-beta:${params.BACKEND_DOCKER_TAG} ritik7806/gym-app-backend-beta:${params.BACKEND_DOCKER_TAG}
+                """
+            }
+            
+        }
+    }
+}
+stage("Docker: Push to DockerHub") {
+    steps {
+        script {
+            // Push the backend Docker image to DockerHub
+            bat """
+                docker push ritik7806/gym-app-backend-beta:${params.BACKEND_DOCKER_TAG}
+            """
+        }
+    }
+}
+stage("Update Kubernetes Manifests") {
+            steps {
+                script {
+                    echo "Updating Kubernetes manifests"
+
+                    // Change to the 'kubernetes' directory
+                    dir('kubernetes'){
+
+                    // Update backend.yaml with BACKEND_DOCKER_TAG
+                    bat '''
+                        powershell -Command "(Get-Content backend.yml) -replace 'gym-app-backend-beta.*', 'gym-app-backend-beta:%BACKEND_DOCKER_TAG%' | Set-Content backend.yml"
+                    '''
+                    }
+                    echo "Kubernetes manifests have been updated"
+                }
+            }
+        }
+        stage("Git: Code update and push to GitHub") {
+    steps {
+        script {
+            withCredentials([usernamePassword(credentialsId: 'github-cred', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                // Set Git username and email using Windows bat commands
+                bat '''
+                    git config --global user.email "ritik.rs7806@gmail.com"
+                    git config --global user.name "Ritik-7806"
+                '''
+                echo "Checking repository status:"
+                bat 'git status'
+
+                echo "Adding changes to git:"
+                bat 'git add .'
+
+                echo "Committing changes:"
+                bat 'git commit -m "Updated environment variables"'
+
+                echo "Pushing changes to GitHub:"
+                bat '''git push https://%GIT_USERNAME%:%GIT_PASSWORD%@github.com/Ritik-7806/Gym-Management-Application.git main'''
+            }
+        }
+    }
+    }
+}}
