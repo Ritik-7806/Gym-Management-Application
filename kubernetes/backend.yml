@@ -31,7 +31,7 @@ metadata:
   name: backend-service
   namespace: gym-app
 spec:
-  type: Nodeport
+  type: NodePort
   selector:
     app: backend
   ports:
